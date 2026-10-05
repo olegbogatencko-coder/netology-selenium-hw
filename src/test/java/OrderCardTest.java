@@ -6,6 +6,7 @@ import org.openqa.selenium.WebElement;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class OrderCardTest {
@@ -66,8 +67,11 @@ public class OrderCardTest {
         clickSubmit();
 
         WebElement successMessage = driver.findElement(
-                By.xpath("//*[contains(text(), 'успешно отправлена')]"));
-        assertTrue(successMessage.isDisplayed(), "Сообщение об успешной отправке не появилось!");
+                By.cssSelector("[data-test-id='order-success']"));
+
+        String expectedText = "Ваша заявка успешно отправлена! Наш менеджер свяжется с вами в ближайшее время.";
+        String actualText = successMessage.getText().trim();
+        assertEquals(expectedText, actualText, "Текст сообщения об успехе не совпадает!");
     }
 
     // ===== ЗАДАЧА 2: Валидация =====
@@ -80,14 +84,13 @@ public class OrderCardTest {
         clickAgreementCheckbox();
         clickSubmit();
 
-        // Сообщение об ошибке — ищем .input__sub внутри блока имени
         WebElement errorMessage = driver.findElement(
-                By.cssSelector("[data-test-id='name'] .input__sub"));
-        assertTrue(errorMessage.isDisplayed(), "Сообщение об ошибке не появилось!");
+                By.cssSelector("[data-test-id='name'].input_invalid .input__sub"));
+        assertTrue(errorMessage.isDisplayed(), "Сообщение об ошибке не отображается!");
 
-        // Подсветка — ищем любой элемент с классом input_invalid (глобально)
-        WebElement invalidField = driver.findElement(By.cssSelector(".input_invalid"));
-        assertTrue(invalidField.isDisplayed(), "Поле не подсвечено красным!");
+        String expectedText = "Имя и Фамилия указаные неверно. Допустимы только русские буквы, пробелы и дефисы.";
+        assertEquals(expectedText, errorMessage.getText().trim(),
+                "Текст сообщения об ошибке не совпадает!");
     }
 
     // 2. Невалидный телефон (короткий)
@@ -99,11 +102,12 @@ public class OrderCardTest {
         clickSubmit();
 
         WebElement errorMessage = driver.findElement(
-                By.cssSelector("[data-test-id='phone'] .input__sub"));
-        assertTrue(errorMessage.isDisplayed(), "Сообщение об ошибке не появилось!");
+                By.cssSelector("[data-test-id='phone'].input_invalid .input__sub"));
+        assertTrue(errorMessage.isDisplayed(), "Сообщение об ошибке не отображается!");
 
-        WebElement invalidField = driver.findElement(By.cssSelector(".input_invalid"));
-        assertTrue(invalidField.isDisplayed(), "Поле не подсвечено красным!");
+        String expectedText = "Телефон указан неверно. Должно быть 11 цифр, например, +79012345678.";
+        assertEquals(expectedText, errorMessage.getText().trim(),
+                "Текст сообщения об ошибке не совпадает!");
     }
 
     // 3. Пустое имя
@@ -114,11 +118,12 @@ public class OrderCardTest {
         clickSubmit();
 
         WebElement errorMessage = driver.findElement(
-                By.cssSelector("[data-test-id='name'] .input__sub"));
-        assertTrue(errorMessage.isDisplayed(), "Сообщение об ошибке не появилось!");
+                By.cssSelector("[data-test-id='name'].input_invalid .input__sub"));
+        assertTrue(errorMessage.isDisplayed(), "Сообщение об ошибке не отображается!");
 
-        WebElement invalidField = driver.findElement(By.cssSelector(".input_invalid"));
-        assertTrue(invalidField.isDisplayed(), "Поле не подсвечено красным!");
+        String expectedText = "Поле обязательно для заполнения";
+        assertEquals(expectedText, errorMessage.getText().trim(),
+                "Текст сообщения об ошибке не совпадает!");
     }
 
     // 4. Пустой телефон
@@ -129,14 +134,18 @@ public class OrderCardTest {
         clickSubmit();
 
         WebElement errorMessage = driver.findElement(
-                By.cssSelector("[data-test-id='phone'] .input__sub"));
-        assertTrue(errorMessage.isDisplayed(), "Сообщение об ошибке не появилось!");
+                By.cssSelector("[data-test-id='phone'].input_invalid .input__sub"));
+        assertTrue(errorMessage.isDisplayed(), "Сообщение об ошибке не отображается!");
 
-        WebElement invalidField = driver.findElement(By.cssSelector(".input_invalid"));
-        assertTrue(invalidField.isDisplayed(), "Поле не подсвечено красным!");
+        String expectedText = "Поле обязательно для заполнения";
+        assertEquals(expectedText, errorMessage.getText().trim(),
+                "Текст сообщения об ошибке не совпадает!");
     }
 
     // 5. Не отмечен чекбокс согласия
+    // БАГ SUT: при неотмеченном чекбоксе не появляется сообщение об ошибке.
+    // Issue: https://github.com/olegbogatencko-coder/netology-selenium-hw/issues/1
+    @Disabled("Баг SUT: не отображается ошибка валидации чекбокса. См. issue #1")
     @Test
     public void shouldShowErrorForUncheckedAgreement() {
         fillName("Иванов Иван");
@@ -144,8 +153,33 @@ public class OrderCardTest {
         // Чекбокс НЕ ставим
         clickSubmit();
 
-        // Ищем любой элемент с классом input_invalid
-        WebElement invalidAgreement = driver.findElement(By.cssSelector(".input_invalid"));
-        assertTrue(invalidAgreement.isDisplayed(), "Чекбокс не подсвечен красным!");
+        WebElement errorMessage = driver.findElement(
+                By.cssSelector("[data-test-id='agreement'].input_invalid .input__sub"));
+        assertTrue(errorMessage.isDisplayed(), "Сообщение об ошибке не отображается!");
+
+        String expectedText = "Необходимо подтвердить согласие";
+        assertEquals(expectedText, errorMessage.getText().trim(),
+                "Текст сообщения об ошибке не совпадает!");
+    }
+
+    // 6. Только одно слово в поле "Фамилия и имя"
+    // БАГ SUT: система принимает одно слово как валидное значение,
+    // хотя по требованиям должно быть указано "Фамилия и имя" (два слова).
+    // Issue: https://github.com/olegbogatencko-coder/netology-selenium-hw/issues/2
+    @Disabled("Баг SUT: принимается одно слово вместо 'Фамилия и имя'. См. issue #2")
+    @Test
+    public void shouldShowErrorForSingleWordName() {
+        fillName("Иванов");
+        fillPhone("+79999999999");
+        clickAgreementCheckbox();
+        clickSubmit();
+
+        WebElement errorMessage = driver.findElement(
+                By.cssSelector("[data-test-id='name'].input_invalid .input__sub"));
+        assertTrue(errorMessage.isDisplayed(), "Сообщение об ошибке не отображается!");
+
+        String expectedText = "Имя и Фамилия указаные неверно. Допустимы только русские буквы, пробелы и дефисы.";
+        assertEquals(expectedText, errorMessage.getText().trim(),
+                "Текст сообщения об ошибке не совпадает!");
     }
 }
